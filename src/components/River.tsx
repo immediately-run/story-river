@@ -40,9 +40,15 @@ function CopyLinkButton({ entryKey, title }: { entryKey: string; title: string }
       className="river-card__copy"
       aria-label={`Copy a link to ${title}`}
       onClick={() => {
-        const base = window.location.href.split('#')[0].split('?')[0];
+        // The app's URL space up to /files (grove's viewedDocument rule), then the
+        // entry's own corpus-relative href: a dirname-splice would place a nested
+        // entry under the focused entry's folder and share a phantom path.
+        const path = window.location.pathname;
+        const at = path.indexOf('/files');
+        const base =
+          window.location.origin + (at === -1 ? path.replace(/[^/]*$/, '') : path.slice(0, at + '/files'.length));
         const url =
-          base.replace(/[^/]*$/, '') +
+          base.replace(/\/?$/, '/') +
           keyToHref(entryKey).replace(/^\//, '') +
           serializeStory({ keys: [entryKey], focused: entryKey });
         navigator.clipboard
@@ -224,13 +230,15 @@ export default function River({
       // when the policy runs (§6.4 row 1 — "focuses it, scrolls it into view").
       // Retry until the card's body commits, then do both.
       focusWhenMounted: (key) => {
+        // §6.8: a safe-rendered card costs seconds — wait like Grove's own
+        // ScrollToFragment does (200 ms polls, 30 s cap), scoped to this entry.
         let tries = 0;
         const attempt = () => {
           tries += 1;
           const card = cardRefs.current.get(key);
           const heading = card?.querySelector<HTMLElement>('.grove-page h1, .grove-page h2');
           if (!card || !heading) {
-            if (tries < 40) window.setTimeout(attempt, 50); // ~2 s of render waits
+            if (tries < 150) window.setTimeout(attempt, 200); // the §6.8 window
             return;
           }
           heading.setAttribute('tabindex', '-1');

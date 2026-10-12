@@ -42,6 +42,27 @@ describe('parseStory', () => {
     expect(s.keys).toEqual([HOME, ADA]);
   });
 
+  it('a story key that names nothing under the corpus stays unresolvable and is dropped with the notice', () => {
+    // 'banana' cannot anchor under /app/content — it must reach dropUnresolvable
+    // as a marker, never collapse into a duplicate home card.
+    const state = parseStory(`?${STORY_PARAM}=banana,${H(ADA)}`, '/files/content/home.mdx');
+    expect(state.keys.filter((k) => k === HOME).length).toBeLessThanOrEqual(1);
+    const { state: cleaned, dropped } = dropUnresolvable(state, (k) => KNOWN.has(k));
+    expect(dropped.length).toBeGreaterThanOrEqual(1);
+    expect(cleaned.keys.every((k) => KNOWN.has(k))).toBe(true);
+    expect(cleaned.keys).not.toContain('/banana');
+  });
+
+  it('a 21+-key story whose focused entry sits past the bound re-joins at the top', () => {
+    const many = Array.from({ length: MAX_CARDS + 3 }, (_, i) => `/content/pages/p${String(i).padStart(2, '0')}.mdx`);
+    const focusedPastTheBound = many[MAX_CARDS + 1];
+    const search = `?${STORY_PARAM}=${[...many, focusedPastTheBound].map(encodeURIComponent).join(',')}`;
+    const state = parseStory(search, '/files' + focusedPastTheBound);
+    expect(state.keys.length).toBeLessThanOrEqual(MAX_CARDS);
+    expect(state.keys[0]).toBe('/app' + focusedPastTheBound);
+    expect(state.focused).toBe(state.keys[0]);
+  });
+
   it('G-CUST-8: story ignored, the focused path resolves to a real entry', () => {
     // Stock Grove reads only the path. The river's parse of the same URL must
     // land on the same real entry the metadata knows.
