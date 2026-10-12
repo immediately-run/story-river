@@ -32,9 +32,12 @@ export function useRiverShell(siteTitle: string): GroveShell {
   const mounts = useMounts();
   const corpusMountId = getCorpusMountId();
   const writable = useMemo(() => {
+    // §5a.5 / R3-876: the hint is advisory and three-valued — an ABSENT hint
+    // means unknown, which means OFFER (the in-place refusal note renders if the
+    // host disagrees); only an explicit false hides the affordance.
     if (!corpusMountId) return !isContentReadOnly();
     const m = (mounts ?? []).find((x) => x.id === corpusMountId);
-    return m ? m.readerCanEdit === true : false;
+    return m ? m.readerCanEdit !== false : true;
   }, [mounts, corpusMountId]);
 
   const [vw, setVw] = useState<'mobile' | 'desktop'>(

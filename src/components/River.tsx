@@ -45,8 +45,11 @@ function CopyLinkButton({ entryKey, title }: { entryKey: string; title: string }
         // entry under the focused entry's folder and share a phantom path.
         const path = window.location.pathname;
         const at = path.indexOf('/files');
+        // Up to /files for the dispatched/present space; with no /files segment
+        // (standalone/dev) the corpus-relative href resolves from the site root —
+        // a dirname would rebuild the 2-r2-1 phantom path.
         const base =
-          window.location.origin + (at === -1 ? path.replace(/[^/]*$/, '') : path.slice(0, at + '/files'.length));
+          window.location.origin + (at === -1 ? '' : path.slice(0, at + '/files'.length));
         const url =
           base.replace(/\/?$/, '/') +
           keyToHref(entryKey).replace(/^\//, '') +
@@ -230,6 +233,12 @@ export default function River({
       // when the policy runs (§6.4 row 1 — "focuses it, scrolls it into view").
       // Retry until the card's body commits, then do both.
       focusWhenMounted: (key) => {
+        // §6.4 row 1: the open scrolls the card into view at once — the card
+        // container mounts immediately (only GroveEntry defers), so this first
+        // scroll is also what carries a far-below card into the lazy-mount
+        // horizon; without it a card opened past the horizon never swaps its
+        // skeleton for a body and the wait below could never succeed.
+        cardRefs.current.get(key)?.scrollIntoView({ block: 'start' });
         // §6.8: a safe-rendered card costs seconds — wait like Grove's own
         // ScrollToFragment does (200 ms polls, 30 s cap), scoped to this entry.
         let tries = 0;
@@ -243,7 +252,6 @@ export default function River({
           }
           heading.setAttribute('tabindex', '-1');
           heading.focus({ preventScroll: true });
-          card.scrollIntoView({ block: 'start' });
         };
         attempt();
       },
