@@ -34,8 +34,22 @@ export default defineConfig([
         {
           patterns: [
             {
-              group: ['@immediately-run/grove/src', '@immediately-run/grove/src/*'],
+              // Any deep path is banned except the export map's own entries —
+              // G-CUST-7 ("public exports only"), not merely the src/ spell.
+              group: [
+                '@immediately-run/grove/*',
+                '!@immediately-run/grove/app',
+                '!@immediately-run/grove/components',
+                '!@immediately-run/grove/manifest',
+                '!@immediately-run/grove/theme.css',
+                '!@immediately-run/grove/styles.css',
+                '!@immediately-run/grove/package.json',
+              ],
               message: 'Compose Grove from its public exports ("@immediately-run/grove" and its export-map entries: ./app ./components ./theme.css ./styles.css ./manifest) only — G-CUST-7.',
+            },
+            {
+              group: ['@immediately-run/grove/src', '@immediately-run/grove/src/*'],
+              message: 'Compose Grove from its public exports only — G-CUST-7.',
             },
           ],
         },

@@ -39,10 +39,14 @@ export function RiverNav({
   siteTitle,
   links,
   follow,
+  light,
+  onToggleLight,
 }: {
   siteTitle: string;
   links: Array<{ key: string; label: string }>;
   follow: (t: FollowLinkTarget) => void;
+  light: boolean;
+  onToggleLight: () => void;
 }) {
   return (
     <header className="river-nav">
@@ -54,6 +58,15 @@ export function RiverNav({
           </RiverLink>
         ))}
       </nav>
+      <button
+        type="button"
+        className="river-nav__theme"
+        aria-pressed={light}
+        aria-label={light ? 'Switch to the dark theme' : 'Switch to the light theme'}
+        onClick={onToggleLight}
+      >
+        {light ? 'Dark' : 'Light'}
+      </button>
     </header>
   );
 }

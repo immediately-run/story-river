@@ -14,6 +14,11 @@ export interface RiverFollowDeps {
   titleOf: (key: string) => string;
 }
 
+/** What follows an open vs a focus: an OPEN defers focus+scroll to the card's
+ *  mount (dispatch is a postMessage — React has not rendered the new card when
+ *  the policy runs, so an immediate focus would hit nothing); a FOCUS of an
+ *  existing card can act at once. Both scroll (§6.4 rows 1 and 3). */
+
 /** Chrome links (no `from`) insert at the top — the TiddlyWiki top insert the
  *  mockup keeps. A link inside a card inserts directly below its card. A link to
  *  an open card focuses and scrolls (and the reducer makes it a replace); the
@@ -41,8 +46,10 @@ export function riverFollow({ state, dispatch, getCallbacks, titleOf }: RiverFol
       target.fragment,
     );
     const callbacks = getCallbacks();
-    callbacks?.focusCardTitle(target.key);
-    if (!opened) {
+    if (opened) {
+      callbacks?.focusWhenMounted(target.key);
+    } else {
+      callbacks?.focusCardTitle(target.key);
       callbacks?.scrollToCard(target.key);
       callbacks?.highlightCard(target.key);
     }

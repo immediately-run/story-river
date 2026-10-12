@@ -41,7 +41,13 @@ function App() {
     <GroveShellContext.Provider value={shell}>
       <NavigationPolicyContext.Provider value={river.follow}>
         <div className="river-page">
-          <RiverNav siteTitle="Story river" links={navLinks} follow={river.follow} />
+          <RiverNav
+            siteTitle="Story river"
+            links={navLinks}
+            follow={river.follow}
+            light={shell.light}
+            onToggleLight={() => shell.setLight(!shell.light)}
+          />
           <div className="river-body">
             <RiverSidebar entries={entries} state={river.state} follow={river.follow} titles={titles} />
             <main className="river-main">

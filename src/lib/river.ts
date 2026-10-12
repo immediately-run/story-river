@@ -4,7 +4,7 @@
 // order, bounds, focus and push-vs-replace lives here so the operations table is
 // one testable surface.
 
-import { keyToHref, sandboxPathToKey } from '@immediately-run/grove';
+import { homeKey, keyToHref, sandboxPathToKey } from '@immediately-run/grove';
 
 /** The one query key. Lives here; nothing else spells it (checked in CI by grep). */
 export const STORY_PARAM = 'story';
@@ -36,22 +36,46 @@ export interface RiverOpResult {
  *  `keyToHref` hands the URL space). */
 export const keyToStory = (key: string): string => keyToHref(key);
 
+/** One `story=` element → its canonical key, or the anchored form it would have
+ *  resolved to when it names nothing under the corpus. `sandboxPathToKey` routes
+ *  anything outside the corpus to `homeKey()`, which would turn a mistyped key
+ *  into a duplicate home card — so the containment check happens HERE, and a key
+ *  that names nothing keeps its (harmless) anchored spelling for
+ *  `dropUnresolvable` to drop with the §6.3 notice. */
+function storyKeyToKey(raw: string): string {
+  const p = raw.startsWith('/files') ? raw.slice('/files'.length) : raw.startsWith('/') ? raw : `/${raw}`;
+  const key = sandboxPathToKey(p);
+  // sandboxPathToKey routes anything outside the corpus to homeKey(); when this
+  // element wouldn't land under the corpus root, keep its anchored spelling —
+  // an unresolvable marker dropUnresolvable reports, never a surprise home.
+  if (key === homeKey() && p !== keyToHref(homeKey())) return p;
+  return key;
+}
+
 /** Parse `?story=` + the URL path into a river. `path` is the sandbox path the
  *  host reflects (the `/files/…` form included); it names the focused card. A URL
- *  with no `story` is a river of one card (the path). Keys that arrive malformed
- *  are kept — resolution against the metadata is `dropUnresolvable`'s job (the
- *  notice needs the reader-facing count, which only it can announce). A focused
- *  path missing from `story` joins at the top: the URL names it, so it is open. */
+ *  with no `story` is a river of one card (the path). Keys that name nothing under
+ *  the corpus are kept as unresolvable markers — `dropUnresolvable` drops them
+ *  with the §6.3 notice. The focused entry must appear in the river (§6.3): one
+ *  missing from `story` joins at the top, and one truncated by the 20-card bound
+ *  is re-added at the top of the survivors. */
 export function parseStory(search: string, path: string): RiverState {
   const focused = sandboxPathToKey(path);
   const raw = new URLSearchParams(search).get(STORY_PARAM) ?? '';
-  const keys = raw
-    .split(',')
-    .map((k) => k.trim())
-    .filter((k) => k.length > 0)
-    .map((k) => sandboxPathToKey(k.startsWith('/files') || k.startsWith('/') ? k : `/${k}`));
+  const seen = new Set<string>();
+  const keys: string[] = [];
+  for (const element of raw.split(',')) {
+    const trimmed = element.trim();
+    if (!trimmed) continue;
+    const k = storyKeyToKey(trimmed);
+    if (!k || seen.has(k)) continue;
+    seen.add(k);
+    keys.push(k);
+  }
   if (!keys.includes(focused)) keys.unshift(focused);
-  return { keys: keys.slice(0, MAX_CARDS), focused: keys.includes(focused) ? focused : keys[0] };
+  const bounded = keys.slice(0, MAX_CARDS);
+  if (!bounded.includes(focused)) bounded.unshift(focused);
+  return { keys: bounded.slice(0, MAX_CARDS), focused: bounded.includes(focused) ? focused : bounded[0] };
 }
 
 /** Serialize a river back onto the query string — `parseStory` of the result is
@@ -88,15 +112,25 @@ export function apply(state: RiverState, op: RiverOp): RiverOpResult {
       return { state: { ...state, focused: focusedOf(state.keys, op.key) }, history: 'replace' };
     case 'close': {
       if (state.keys.length <= 1) return { state, history: 'replace' };
-      const at = state.keys.indexOf(op.key);
-      if (at === -1) return { state, history: 'replace' };
+      if (!state.keys.includes(op.key)) return { state, history: 'replace' };
       const keys = state.keys.filter((k) => k !== op.key);
-      // Focus the card that took its place: the next card down, else the one above.
-      const successor = keys[Math.min(at, keys.length - 1)];
+      // Focus the card that took its place (closeSuccessor's rule) when the
+      // closed card held the focus; otherwise the reader's focus is untouched.
+      const successor = closeSuccessor(state, op.key) ?? state.focused;
       const focused = state.focused === op.key ? successor : state.focused;
       return { state: { keys, focused: focusedOf(keys, focused) }, history: 'replace' };
     }
   }
+}
+
+/** The card that takes a closed card's place (§6.4: the next card down, else the
+ *  one above) — the ONE home of that rule; the reducer focuses it and the hook
+ *  moves DOM focus to it. */
+export function closeSuccessor(state: RiverState, key: string): string | null {
+  const at = state.keys.indexOf(key);
+  const keys = state.keys.filter((k) => k !== key);
+  if (at === -1 || keys.length === 0) return null;
+  return keys[Math.min(at, keys.length - 1)];
 }
 
 /** Drop keys the corpus cannot resolve (§6.3: on load, with a notice, never a

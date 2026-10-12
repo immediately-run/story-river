@@ -24,6 +24,7 @@ function harness(keys: string[], focused: string) {
     focusCardTitle: (k) => called.push(`focus:${k}`),
     scrollToCard: (k) => called.push(`scroll:${k}`),
     highlightCard: (k) => called.push(`found:${k}`),
+    focusWhenMounted: (k) => called.push(`when:${k}`),
   };
   const follow = riverFollow({
     state: { keys, focused },
@@ -63,7 +64,8 @@ describe('riverFollow — the §6.4 operations at the click seam', () => {
     expect(h.dispatched[0].state.keys).toEqual([HOME, ADA, ONBOARDING]);
     expect(h.dispatched[0].state.focused).toBe(ONBOARDING);
     expect(h.dispatched[0].history).toBe('push');
-    expect(h.called).toContain(`focus:${ONBOARDING}`);
+    // The open defers focus+scroll to the card's mount (§6.4 row 1) — both land.
+    expect(h.called).toContain(`when:${ONBOARDING}`);
     expect(h.notes[0]).toContain('below its link');
   });
 

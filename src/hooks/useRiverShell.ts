@@ -15,12 +15,15 @@ import {
   type GroveShell,
 } from '@immediately-run/grove';
 
-/** Canonical key → the requestEdit target: the delegated mount's file under
- *  dispatch, the working-tree path in a fork. */
-function editTargetOf(key: string): { file: { mountId: string; relPath: string } } | { path: string } {
-  if (isContentReadOnly() || getCorpusMountId()) {
+/** Canonical key → the requestEdit target, mirroring Grove's own affordance: the
+ *  delegated corpus is read-only by construction, so dispatch asks the workbench
+ *  to open the entry's bundle-file source under the reader's authority (§5a.3 —
+ *  the `file` class is refused read-only at call time and would never open); a
+ *  fork opens its own working-tree source. */
+function editTargetOf(key: string): { bundleFile: string } | { path: string } {
+  if (getCorpusMountId()) {
     const root = contentDir();
-    return { file: { mountId: getCorpusMountId() ?? '', relPath: '/' + key.slice(root.length) } };
+    return { bundleFile: '/' + key.slice(root.length) };
   }
   return { path: keyToHref(key).replace(/^\//, '') };
 }
@@ -102,7 +105,9 @@ export function useRiverShell(siteTitle: string): GroveShell {
       mins: 0,
       missing: false,
       directory: { status: 'none' },
-      stylesheetsStatus: 'ready',
+      // §6.7's home-entry stylesheets/theme carry into the river only when
+      // Grove exports the read (R3-1199); asserting a read state nothing
+      // established would be the lie it replaces.
     }),
     [light, vw, writable, openEditor, editBusy, editRefused, siteTitle],
   );

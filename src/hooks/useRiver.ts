@@ -6,8 +6,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { navigate, useAllMetadata, useRoute } from '@immediately-run/sdk';
 import { isContentEntry, keyToHref } from '@immediately-run/grove';
+import { titleOf } from '../lib/sidebarEntries';
 import {
   apply,
+  closeSuccessor,
   dropUnresolvable,
   parseStory,
   serializeStory,
@@ -26,15 +28,8 @@ export interface RiverCallbacks {
   focusCardTitle: (key: string) => void;
   scrollToCard: (key: string) => void;
   highlightCard: (key: string) => void;
-}
-
-/** Reader-facing name for announcements and aria-labels. */
-export function titleOf(metadata: Record<string, unknown> | null, key: string): string {
-  const meta = metadata?.[key] as { title?: string } | undefined;
-  if (meta?.title) return String(meta.title).replace(/\.?$/, '');
-  const rel = keyToHref(key).replace(/^\//, '').replace(/\.mdx?$/, '');
-  const crumb = rel.split('/').pop() ?? rel;
-  return crumb.charAt(0).toUpperCase() + crumb.slice(1);
+  /** An OPEN defers until the new card commits (dispatch is a postMessage). */
+  focusWhenMounted: (key: string) => void;
 }
 
 export function useRiver() {
@@ -51,7 +46,9 @@ export function useRiver() {
   const raw = useMemo(() => parseStory(search, path), [search, path]);
   const cleaned = useMemo(() => dropUnresolvable(raw, (k) => known.has(k)), [raw, known]);
   const state: RiverState = known.size > 0 ? cleaned.state : raw;
-  const dropped = cleaned.dropped;
+  // Gated on the metadata having arrived: `known` is empty on cold load and a
+  // false "N entries were dropped" must not announce before it could know.
+  const dropped = useMemo(() => (known.size > 0 ? cleaned.dropped : []), [known, cleaned]);
 
   const [announcement, setAnnouncement] = useState<RiverAnnouncement | null>(null);
   const seq = useRef(0);
@@ -119,12 +116,12 @@ export function useRiver() {
 
   const closeCard = useCallback(
     (key: string) => {
-      const at = state.keys.indexOf(key);
-      const keys = state.keys.filter((k) => k !== key);
-      const successor = at !== -1 && keys.length > 0 ? keys[Math.min(at, keys.length - 1)] : null;
       const result = apply(state, { op: 'close', key });
       if (result.state === state) return; // the sole card has no close
       dispatch(result, `Closed ${titleOf(metadata, key)}.`);
+      // The card that took its place takes DOM focus too (§6.4) — the rule's
+      // one home is the reducer's closeSuccessor.
+      const successor = closeSuccessor(state, key);
       if (successor) registered.current?.focusCardTitle(successor);
     },
     [dispatch, state, metadata],

@@ -37,13 +37,18 @@ way the delegated corpus arrives read-only; the boot gate
 The river renders every card through the safe renderer whatever the bundle declares
 (§6.7), via the shell context.
 
-## Known seam gaps (filed, not worked around)
+## Known seam gaps (filed as R3-1199, not worked around)
 
 - **Backlinks in the rail**: Grove's `Backlinks` reads the routed entry and its body
   scan (`bodyLinksTo`) is internal — a shell cannot ask "who links to THIS key". The
   rail ships with the focused card's table of contents and the "In the river" list;
   backlinks join when Grove exports the seam.
-- **Search**: Grove's `Search` component is not in the export map, so the nav ships
-  without it.
+- **Search and the footer**: neither is in the export map, so the nav ships without
+  search and the page without a footer.
+- **The home entry's theme + stylesheets river-wide** (§6.7): the read that
+  establishes them has no public composition path, so the river carries neither —
+  and asserts no read state nothing established.
 
-Both are the item's prescribed move — a Grove item, never a deep import.
+All four are the item's prescribed move — a Grove item (R3-1199), never a deep import.
+The theme CONTROL is the river's own (the shell contract's `light`/`setLight`), wired
+to grove's `theme.css` `[data-theme]` cascade.

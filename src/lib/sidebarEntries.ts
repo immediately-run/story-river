@@ -9,10 +9,18 @@ export function sidebarEntries(
   return Object.keys(metadata ?? {})
     .filter(isContentEntry)
     .sort()
-    .map((key) => {
-      const meta = metadata?.[key] as { title?: string } | undefined;
-      return { key, label: meta?.title ?? keyToHref(key) };
-    });
+    .map((key) => ({ key, label: titleOf(metadata, key) }));
+}
+
+/** The ONE reader-facing spelling of an entry's title: the frontmatter title
+ *  without its typeset trailing period (announcements, aria-labels, sidebar and
+ *  rail all render this exact string). */
+export function titleOf(metadata: Record<string, unknown> | null, key: string): string {
+  const meta = metadata?.[key] as { title?: string } | undefined;
+  if (meta?.title) return String(meta.title).replace(/\.$/, '');
+  const rel = keyToHref(key).replace(/^\//, '').replace(/\.mdx?$/, '');
+  const crumb = rel.split('/').pop() ?? rel;
+  return crumb.charAt(0).toUpperCase() + crumb.slice(1);
 }
 
 /** Reader-facing titles for announcements and aria-labels. */
